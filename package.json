@@ -1,0 +1,29 @@
+{
+  "name": "househunt",
+  "version": "1.0.0",
+  "description": "HouseHunt - Full Stack House Rent Management System (MERN Stack)",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "server": "nodemon server/server.js",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "seed-admin": "node server/scripts/seedAdmin.js",
+    "seed-properties": "node server/scripts/seedProperties.js",
+    "seed": "node server/scripts/seedAdmin.js && node server/scripts/seedProperties.js",
+    "test": "cd server && npm test"
+  },
+  "keywords": [
+    "house-rent",
+    "mern-stack",
+    "property-management",
+    "rental-platform"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.9"
+  }
+}
