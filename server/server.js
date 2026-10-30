@@ -12,8 +12,31 @@ const { errorHandler, notFound } = require('./middleware/errorMiddleware');
 // Load environment variables from the server directory
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-// Connect to MongoDB
-connectDB();
+// Auto-seed admin on startup (safe - only creates if not exists)
+const autoSeedAdmin = async () => {
+  try {
+    const User = require('./models/User');
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@househunt.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@12345';
+    const existing = await User.findOne({ email: adminEmail });
+    if (!existing) {
+      await User.create({
+        name: 'HouseHunt Admin',
+        email: adminEmail,
+        phone: '9999999999',
+        password: adminPassword,
+        role: 'admin',
+        isActive: true,
+      });
+      console.log(`✅ Admin account auto-created: ${adminEmail}`);
+    }
+  } catch (err) {
+    console.error('⚠️  Admin auto-seed skipped:', err.message);
+  }
+};
+
+// Connect to MongoDB then auto-seed
+connectDB().then(() => autoSeedAdmin());
 
 const app = express();
 
@@ -35,10 +58,24 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// CORS configuration
+// CORS configuration - allow localhost dev + Netlify production
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://househunt-smartbridge.netlify.app',
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (Postman, curl, mobile apps)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin) || /\.netlify\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
