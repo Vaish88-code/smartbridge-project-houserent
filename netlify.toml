@@ -1,0 +1,12 @@
+# Netlify configuration for HouseHunt Frontend
+
+[build]
+  base = "client"
+  command = "npm install && npm run build"
+  publish = "dist"
+
+# SPA routing - redirect all routes to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
