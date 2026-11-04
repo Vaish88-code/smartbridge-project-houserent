@@ -12,6 +12,8 @@
     "seed-admin": "node server/scripts/seedAdmin.js",
     "seed-properties": "node server/scripts/seedProperties.js",
     "seed": "node server/scripts/seedAdmin.js && node server/scripts/seedProperties.js",
+    "test-connection": "node server/scripts/testConnection.js",
+    "setup": "node server/scripts/testConnection.js && node server/scripts/seedAdmin.js && node server/scripts/seedProperties.js",
     "test": "cd server && npm test"
   },
   "keywords": [

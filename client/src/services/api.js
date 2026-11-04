@@ -18,8 +18,14 @@ api.interceptors.response.use(
     if (error.response) {
       // Server responded with error
       if (error.response.status === 401) {
-        // Token expired or invalid - clear local state
-        window.dispatchEvent(new Event('auth-error'));
+        // Only fire auth-error if the request was NOT to /auth/me (initial auth check)
+        // and NOT to /auth/login or /auth/register (login/register attempts)
+        const url = error.config?.url || '';
+        const isAuthRoute = url.includes('/auth/me') || url.includes('/auth/login') || url.includes('/auth/register');
+        if (!isAuthRoute) {
+          // Token expired or invalid - clear local state
+          window.dispatchEvent(new Event('auth-error'));
+        }
       }
       return Promise.reject(error.response.data);
     }

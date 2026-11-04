@@ -22,14 +22,20 @@ const Dashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [propRes, bookRes, recvRes] = await Promise.all([
+      const [propRes, bookRes, recvRes] = await Promise.allSettled([
         propertyAPI.getMyProperties(),
         bookingAPI.getMyBookings(),
         bookingAPI.getReceived(),
       ]);
-      setMyProperties(propRes.data.properties || []);
-      setMyBookings(bookRes.data.bookings || []);
-      setReceivedBookings(recvRes.data.bookings || []);
+      if (propRes.status === 'fulfilled') {
+        setMyProperties(propRes.value.data.properties || []);
+      }
+      if (bookRes.status === 'fulfilled') {
+        setMyBookings(bookRes.value.data.bookings || []);
+      }
+      if (recvRes.status === 'fulfilled') {
+        setReceivedBookings(recvRes.value.data.bookings || []);
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
