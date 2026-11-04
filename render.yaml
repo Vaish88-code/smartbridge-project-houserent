@@ -9,14 +9,14 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 5000
+        value: 10000
       - key: MONGO_URI
-        sync: false
+        value: mongodb+srv://vg2530774_db_user:DXchoQ5gTeY9xUZV@househunt-cluster.2lvania.mongodb.net/househunt?retryWrites=true&w=majority&appName=househunt-cluster
       - key: JWT_SECRET
-        sync: false
+        value: househunt_super_secret_jwt_2024_production
       - key: CLIENT_URL
         value: https://househunt-smartbridge.netlify.app
       - key: ADMIN_EMAIL
         value: admin@househunt.com
       - key: ADMIN_PASSWORD
-        sync: false
+        value: Admin@12345
