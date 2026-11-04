@@ -69,7 +69,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (Postman, curl, mobile apps)
+      // Allow requests with no origin (Postman, curl, local HTML files, mobile apps)
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin) || /\.netlify\.app$/.test(origin)) {
         return callback(null, true);

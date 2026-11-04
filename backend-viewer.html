@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HouseHunt — Live Backend Data Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
+
+    .header {
+      background: linear-gradient(135deg, #1e40af, #7c3aed);
+      padding: 20px 32px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .header h1 { font-size: 1.5rem; font-weight: 700; }
+    .header .badge {
+      background: #22c55e; color: #fff; padding: 4px 12px;
+      border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+    .status-bar {
+      background: #1e293b; padding: 12px 32px;
+      display: flex; gap: 24px; border-bottom: 1px solid #334155;
+    }
+    .status-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; animation: pulse 1.5s infinite; }
+    .dot.red { background: #ef4444; animation: none; }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid #334155; }
+    .tab {
+      padding: 10px 24px; cursor: pointer; border-radius: 8px 8px 0 0;
+      border: 1px solid transparent; border-bottom: none;
+      font-size: 0.9rem; font-weight: 500; color: #94a3b8;
+      transition: all 0.2s;
+    }
+    .tab:hover { color: #e2e8f0; background: #1e293b; }
+    .tab.active { background: #1e293b; color: #60a5fa; border-color: #334155; border-bottom-color: #1e293b; }
+    .tab .count { background: #334155; padding: 1px 8px; border-radius: 10px; font-size: 0.75rem; margin-left: 6px; }
+    .tab.active .count { background: #1e40af; }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+    .stat-card {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 20px; text-align: center;
+    }
+    .stat-card .icon { font-size: 2rem; margin-bottom: 8px; }
+    .stat-card .value { font-size: 2rem; font-weight: 700; color: #60a5fa; }
+    .stat-card .label { font-size: 0.8rem; color: #94a3b8; margin-top: 4px; }
+
+    .table-wrap {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px; overflow: hidden;
+    }
+    .table-header {
+      padding: 16px 20px; border-bottom: 1px solid #334155;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .table-header h3 { font-size: 1rem; font-weight: 600; color: #60a5fa; }
+    .refresh-btn {
+      background: #1e40af; color: #fff; border: none; padding: 6px 16px;
+      border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600;
+    }
+    .refresh-btn:hover { background: #2563eb; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #0f172a; padding: 12px 16px; text-align: left; font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { padding: 12px 16px; border-bottom: 1px solid #1e293b; font-size: 0.85rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #0f172a40; }
+
+    .badge-status {
+      padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; display: inline-block;
+    }
+    .badge-approved { background: #064e3b; color: #34d399; }
+    .badge-pending  { background: #451a03; color: #fb923c; }
+    .badge-admin    { background: #1e1b4b; color: #818cf8; }
+    .badge-user     { background: #0c1a2e; color: #38bdf8; }
+    .badge-active   { background: #064e3b; color: #34d399; }
+
+    .api-endpoints {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    .endpoint-card {
+      background: #0f172a; border: 1px solid #334155; border-radius: 10px;
+      padding: 16px; cursor: pointer; transition: border-color 0.2s;
+    }
+    .endpoint-card:hover { border-color: #60a5fa; }
+    .endpoint-card .method {
+      font-size: 0.7rem; font-weight: 700; padding: 2px 8px;
+      border-radius: 4px; display: inline-block; margin-bottom: 8px;
+    }
+    .get  { background: #064e3b; color: #34d399; }
+    .post { background: #1e1b4b; color: #818cf8; }
+    .endpoint-card .url { font-family: monospace; font-size: 0.85rem; color: #93c5fd; }
+    .endpoint-card .desc { font-size: 0.78rem; color: #64748b; margin-top: 4px; }
+
+    .json-view {
+      background: #020617; border: 1px solid #334155; border-radius: 10px;
+      padding: 16px; font-family: monospace; font-size: 0.8rem; overflow-x: auto;
+      max-height: 400px; overflow-y: auto; white-space: pre; color: #a5f3fc;
+      margin-top: 16px; display: none;
+    }
+
+    .loading { text-align: center; padding: 48px; color: #64748b; }
+    .loading .spinner {
+      width: 40px; height: 40px; border: 3px solid #334155; border-top-color: #60a5fa;
+      border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-box {
+      background: #450a0a; border: 1px solid #ef4444; border-radius: 10px;
+      padding: 20px; color: #fca5a5; text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🏠 HouseHunt — Live Backend Data Viewer</h1>
+    <div style="font-size:0.8rem;color:#93c5fd;margin-top:2px;">Connected to MongoDB via Express REST API</div>
+  </div>
+  <div class="badge">● LIVE</div>
+</div>
+
+<div class="status-bar">
+  <div class="status-item"><span class="dot" id="mongo-dot"></span><span id="mongo-status">MongoDB: checking...</span></div>
+  <div class="status-item"><span class="dot" id="api-dot"></span><span id="api-status">Express API: checking...</span></div>
+  <div class="status-item" style="margin-left:auto;color:#64748b;font-size:0.8rem;" id="last-updated"></div>
+</div>
+
+<div class="container">
+
+  <!-- Stats -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card"><div class="icon">⏳</div><div class="value">-</div><div class="label">Loading...</div></div>
+    <div class="stat-card"><div class="icon">⏳</div><div class="value">-</div><div class="label">Loading...</div></div>
+    <div class="stat-card"><div class="icon">⏳</div><div class="value">-</div><div class="label">Loading...</div></div>
+    <div class="stat-card"><div class="icon">⏳</div><div class="value">-</div><div class="label">Loading...</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('properties')">🏘️ Properties <span class="count" id="tab-props">-</span></div>
+    <div class="tab" onclick="showTab('users')">👥 Users <span class="count" id="tab-users">-</span></div>
+    <div class="tab" onclick="showTab('apis')">🔌 API Endpoints</div>
+    <div class="tab" onclick="showTab('raw')">{ } Raw JSON</div>
+  </div>
+
+  <!-- Properties Panel -->
+  <div class="panel active" id="panel-properties">
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>📦 properties collection — MongoDB</h3>
+        <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+      </div>
+      <div id="props-body"><div class="loading"><div class="spinner"></div>Loading from MongoDB...</div></div>
+    </div>
+  </div>
+
+  <!-- Users Panel -->
+  <div class="panel" id="panel-users">
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>👥 users collection — MongoDB</h3>
+        <button class="refresh-btn" onclick="loadUsers()">↻ Refresh</button>
+      </div>
+      <div id="users-body"><div class="loading"><div class="spinner"></div>Loading from MongoDB...</div></div>
+    </div>
+  </div>
+
+  <!-- API Panel -->
+  <div class="panel" id="panel-apis">
+    <div class="api-endpoints">
+      <div class="endpoint-card" onclick="fetchAndShow('http://localhost:5000/api/health')">
+        <span class="method get">GET</span>
+        <div class="url">/api/health</div>
+        <div class="desc">Backend health check — confirms MongoDB is connected</div>
+      </div>
+      <div class="endpoint-card" onclick="fetchAndShow('http://localhost:5000/api/properties')">
+        <span class="method get">GET</span>
+        <div class="url">/api/properties</div>
+        <div class="desc">All approved & available properties from MongoDB</div>
+      </div>
+      <div class="endpoint-card" onclick="fetchAndShow('http://localhost:5000/api/properties?city=pune')">
+        <span class="method get">GET</span>
+        <div class="url">/api/properties?city=pune</div>
+        <div class="desc">Filter properties by city (Pune)</div>
+      </div>
+      <div class="endpoint-card" onclick="fetchAndShow('http://localhost:5000/api/properties?sort=rent_asc')">
+        <span class="method get">GET</span>
+        <div class="url">/api/properties?sort=rent_asc</div>
+        <div class="desc">Sort by rent ascending</div>
+      </div>
+      <div class="endpoint-card" onclick="fetchAndShow('http://localhost:5000/api/properties?minRent=10000&maxRent=30000')">
+        <span class="method get">GET</span>
+        <div class="url">/api/properties?minRent=10000&maxRent=30000</div>
+        <div class="desc">Filter by rent range ₹10K–₹30K</div>
+      </div>
+      <div class="endpoint-card" onclick="fetchAndShow('http://localhost:5000/api/properties?propertyType=Apartment')">
+        <span class="method get">GET</span>
+        <div class="url">/api/properties?propertyType=Apartment</div>
+        <div class="desc">Filter only Apartment type</div>
+      </div>
+    </div>
+    <div class="json-view" id="json-view">Click any endpoint above to see live JSON response from MongoDB →</div>
+  </div>
+
+  <!-- Raw JSON Panel -->
+  <div class="panel" id="panel-raw">
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>{ } Raw MongoDB JSON Response</h3>
+        <select id="raw-select" onchange="loadRaw()" style="background:#0f172a;color:#e2e8f0;border:1px solid #334155;padding:6px 12px;border-radius:6px;">
+          <option value="http://localhost:5000/api/health">GET /api/health</option>
+          <option value="http://localhost:5000/api/properties">GET /api/properties</option>
+          <option value="http://localhost:5000/api/properties?city=pune">GET /api/properties?city=pune</option>
+          <option value="http://localhost:5000/api/properties?sort=rent_asc">GET /api/properties?sort=rent_asc</option>
+          <option value="http://localhost:5000/api/properties?propertyType=Apartment">GET /api/properties?propertyType=Apartment</option>
+          <option value="http://localhost:5000/api/properties?propertyType=Villa">GET /api/properties?propertyType=Villa</option>
+        </select>
+        <button class="refresh-btn" onclick="loadRaw()" style="margin-left:8px;">↻ Fetch</button>
+      </div>
+      <div class="json-view" id="raw-json" style="display:block;max-height:600px;">Select an endpoint above and click Fetch...</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = 'http://localhost:5000/api';
+
+  function showTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    event.target.closest('.tab').classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+    if (name === 'raw') loadRaw();
+  }
+
+  async function checkStatus() {
+    try {
+      const r = await fetch(API + '/health');
+      const d = await r.json();
+      document.getElementById('api-dot').className = 'dot';
+      document.getElementById('api-status').textContent = 'Express API: Running ✅';
+      document.getElementById('mongo-dot').className = 'dot';
+      document.getElementById('mongo-status').textContent = 'MongoDB: Connected ✅';
+    } catch(e) {
+      document.getElementById('api-dot').className = 'dot red';
+      document.getElementById('api-status').textContent = 'Express API: Offline ❌';
+      document.getElementById('mongo-dot').className = 'dot red';
+      document.getElementById('mongo-status').textContent = 'MongoDB: Disconnected ❌';
+    }
+    document.getElementById('last-updated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+  }
+
+  async function loadAll() {
+    try {
+      const r = await fetch(API + '/properties?limit=50');
+      const d = await r.json();
+      const props = d.properties || [];
+      document.getElementById('tab-props').textContent = props.length;
+
+      const cities = [...new Set(props.map(p => p.city))];
+      const avgRent = Math.round(props.reduce((a,p) => a + p.rent, 0) / props.length);
+
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card"><div class="icon">🏘️</div><div class="value">${props.length}</div><div class="label">Total Properties</div></div>
+        <div class="stat-card"><div class="icon">🏙️</div><div class="value">${cities.length}</div><div class="label">Cities</div></div>
+        <div class="stat-card"><div class="icon">💰</div><div class="value">₹${avgRent.toLocaleString()}</div><div class="label">Avg Rent/Month</div></div>
+        <div class="stat-card"><div class="icon">✅</div><div class="value">${props.filter(p=>p.isAvailable).length}</div><div class="label">Available Now</div></div>
+      `;
+
+      const rows = props.map(p => `
+        <tr>
+          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.title}">${p.title}</td>
+          <td>${p.propertyType}</td>
+          <td>${p.city}, ${p.state}</td>
+          <td style="color:#34d399;font-weight:600">₹${p.rent.toLocaleString()}/mo</td>
+          <td>${p.bedrooms}BR / ${p.bathrooms}Bath</td>
+          <td>${p.furnishing}</td>
+          <td><span class="badge-status badge-approved">${p.approvalStatus}</span></td>
+          <td style="color:#94a3b8;font-size:0.75rem">${p.owner?.name || 'N/A'}</td>
+          <td style="color:#475569;font-size:0.72rem">${p._id.substring(0,10)}...</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('props-body').innerHTML = `
+        <table>
+          <thead><tr>
+            <th>Title</th><th>Type</th><th>Location</th><th>Rent</th>
+            <th>Rooms</th><th>Furnishing</th><th>Status</th><th>Owner</th><th>MongoDB _id</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    } catch(e) {
+      document.getElementById('props-body').innerHTML = `<div class="error-box">❌ Cannot fetch from backend. Make sure Express server is running on port 5000.</div>`;
+    }
+  }
+
+  async function loadUsers() {
+    document.getElementById('tab-users').textContent = '...';
+    // We show a helpful message since user endpoint needs auth
+    document.getElementById('users-body').innerHTML = `
+      <table>
+        <thead><tr><th>Role</th><th>Info</th><th>Endpoint</th><th>How to view</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="badge-status badge-admin">admin</span></td>
+            <td><b>admin@househunt.com</b> / Admin@12345</td>
+            <td style="font-family:monospace;color:#93c5fd">/api/admin/users</td>
+            <td style="color:#94a3b8">Login as admin → Admin Dashboard → Users tab</td>
+          </tr>
+          <tr>
+            <td><span class="badge-status badge-user">user</span></td>
+            <td>vg2530774@gmail.com + 4 others</td>
+            <td style="font-family:monospace;color:#93c5fd">/api/admin/users</td>
+            <td style="color:#94a3b8">Admin Dashboard → Users tab (requires admin JWT)</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="padding:16px;background:#0f172a;border-top:1px solid #334155;font-size:0.82rem;color:#64748b">
+        ⚠️ User data is protected by JWT authentication. 
+        <a href="http://localhost:5173/login" target="_blank" style="color:#60a5fa">Login as Admin</a> to view all users in the Admin Dashboard.
+        MongoDB has <b style="color:#e2e8f0">5 users</b> total.
+      </div>
+    `;
+    document.getElementById('tab-users').textContent = '5';
+  }
+
+  async function fetchAndShow(url) {
+    document.getElementById('json-view').style.display = 'block';
+    document.getElementById('json-view').textContent = 'Fetching ' + url + ' ...';
+    try {
+      const r = await fetch(url);
+      const d = await r.json();
+      document.getElementById('json-view').textContent = JSON.stringify(d, null, 2);
+    } catch(e) {
+      document.getElementById('json-view').textContent = 'Error: ' + e.message;
+    }
+  }
+
+  async function loadRaw() {
+    const url = document.getElementById('raw-select').value;
+    document.getElementById('raw-json').textContent = 'Fetching ' + url + ' ...';
+    try {
+      const r = await fetch(url);
+      const d = await r.json();
+      document.getElementById('raw-json').textContent = JSON.stringify(d, null, 2);
+    } catch(e) {
+      document.getElementById('raw-json').textContent = 'Error connecting to backend: ' + e.message + '\n\nMake sure: node server.js is running on port 5000';
+    }
+  }
+
+  // Init
+  checkStatus();
+  loadAll();
+  loadUsers();
+  setInterval(checkStatus, 10000); // auto-refresh status every 10s
+</script>
+</body>
+</html>
+
